@@ -65,13 +65,13 @@ export const TransactionList = ({ transactions }: TransactionListProps) => {
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <p className={`text-sm font-semibold ${
-                transaction.type === 'income' ? 'text-success' : 'text-foreground'
-              }`}>
-                {transaction.type === 'income' ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
-              </p>
-            </div>
+             <div className="text-right">
+               <p className={`text-sm font-semibold ${
+                 transaction.type === 'income' ? 'text-success' : 'text-foreground'
+               }`}>
+                 {transaction.amount >= 0 ? '+' : ''}${transaction.amount.toFixed(2)}
+               </p>
+             </div>
           </div>
         ))}
       </CardContent>

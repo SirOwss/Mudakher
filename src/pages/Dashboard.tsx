@@ -2,9 +2,12 @@ import { DashboardCard } from "@/components/DashboardCard";
 import { TransactionList } from "@/components/TransactionList";
 import { SmartRecommendations } from "@/components/SmartRecommendations";
 import { FinancialScore } from "@/components/FinancialScore";
+import { AddTransactionForm } from "@/components/AddTransactionForm";
+import { BankStatementUpload } from "@/components/BankStatementUpload";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -12,16 +15,20 @@ import {
   PiggyBank,
   Plus,
   Settings,
-  Bell
+  Bell,
+  Upload,
+  PlusCircle,
+  ChevronDown
 } from "lucide-react";
+import { useState } from "react";
 
-// Mock data
-const mockTransactions = [
-  { id: '1', merchant: 'Starbucks Coffee', amount: 4.50, category: 'Food', date: '2024-01-15', type: 'expense' as const },
-  { id: '2', merchant: 'Uber Technologies', amount: 12.30, category: 'Transport', date: '2024-01-14', type: 'expense' as const },
-  { id: '3', merchant: 'Amazon Purchase', amount: 89.99, category: 'Shopping', date: '2024-01-14', type: 'expense' as const },
+// Mock data - will be managed in state
+const initialTransactions = [
+  { id: '1', merchant: 'Starbucks Coffee', amount: -4.50, category: 'Food', date: '2024-01-15', type: 'expense' as const },
+  { id: '2', merchant: 'Uber Technologies', amount: -12.30, category: 'Transport', date: '2024-01-14', type: 'expense' as const },
+  { id: '3', merchant: 'Amazon Purchase', amount: -89.99, category: 'Shopping', date: '2024-01-14', type: 'expense' as const },
   { id: '4', merchant: 'Salary Deposit', amount: 3200.00, category: 'Income', date: '2024-01-01', type: 'income' as const },
-  { id: '5', merchant: 'Netflix Subscription', amount: 15.99, category: 'Entertainment', date: '2024-01-13', type: 'expense' as const },
+  { id: '5', merchant: 'Netflix Subscription', amount: -15.99, category: 'Entertainment', date: '2024-01-13', type: 'expense' as const },
 ];
 
 const mockRecommendations = [
@@ -51,6 +58,26 @@ const mockRecommendations = [
 ];
 
 const Dashboard = () => {
+  const [transactions, setTransactions] = useState(initialTransactions);
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [isBankUploadOpen, setIsBankUploadOpen] = useState(false);
+
+  const handleAddTransaction = (newTransaction: Omit<typeof transactions[0], 'id'>) => {
+    const transaction = {
+      ...newTransaction,
+      id: `${Date.now()}-${Math.random()}`,
+    };
+    setTransactions(prev => [transaction, ...prev]);
+  };
+
+  const handleTransactionsExtracted = (extractedTransactions: Omit<typeof transactions[0], 'id'>[]) => {
+    const newTransactions = extractedTransactions.map(tx => ({
+      ...tx,
+      id: `${Date.now()}-${Math.random()}-${Math.random()}`,
+    }));
+    setTransactions(prev => [...newTransactions, ...prev]);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -129,20 +156,37 @@ const Dashboard = () => {
 
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <TransactionList transactions={mockTransactions} />
+                  <TransactionList transactions={transactions} />
                   <SmartRecommendations recommendations={mockRecommendations} />
                 </div>
               </TabsContent>
 
               <TabsContent value="transactions" className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold">All Transactions</h2>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Transaction
-                  </Button>
+                  <h2 className="text-xl font-semibold">جميع المعاملات</h2>
+                  <div className="flex gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button>
+                          <Plus className="h-4 w-4 mr-2" />
+                          إضافة معاملة
+                          <ChevronDown className="h-4 w-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setIsAddTransactionOpen(true)}>
+                          <PlusCircle className="h-4 w-4 mr-2" />
+                          إضافة معاملة يدوياً
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setIsBankUploadOpen(true)}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          رفع كشف حساب البنك
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
-                <TransactionList transactions={mockTransactions} />
+                <TransactionList transactions={transactions} />
               </TabsContent>
 
               <TabsContent value="insights" className="space-y-6">
@@ -182,6 +226,20 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* Add Transaction Modal */}
+      <AddTransactionForm
+        isOpen={isAddTransactionOpen}
+        onClose={() => setIsAddTransactionOpen(false)}
+        onAddTransaction={handleAddTransaction}
+      />
+
+      {/* Bank Statement Upload Modal */}
+      <BankStatementUpload
+        isOpen={isBankUploadOpen}
+        onClose={() => setIsBankUploadOpen(false)}
+        onTransactionsExtracted={handleTransactionsExtracted}
+      />
     </div>
   );
 };
