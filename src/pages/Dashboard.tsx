@@ -4,10 +4,12 @@ import { SmartRecommendations } from "@/components/SmartRecommendations";
 import { FinancialScore } from "@/components/FinancialScore";
 import { AddTransactionForm } from "@/components/AddTransactionForm";
 import { BankStatementUpload } from "@/components/BankStatementUpload";
+import { BudgetManager, Budget, SavingsGoal } from "@/components/BudgetManager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/components/ui/use-toast";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -35,30 +37,46 @@ const mockRecommendations = [
   {
     id: '1',
     type: 'saving' as const,
-    title: 'Reduce Coffee Spending',
-    description: 'You\'ve spent $67 on coffee this month. Consider making coffee at home 2-3 days per week.',
+    title: 'تقليل مصاريف القهوة',
+    description: 'لقد أنفقت $67 على القهوة هذا الشهر. فكر في صنع القهوة في المنزل 2-3 أيام في الأسبوع.',
     potentialSaving: 25,
-    priority: 'medium' as const
+    priority: 'medium' as const,
+    actionData: {
+      category: 'Food',
+      amount: 150
+    }
   },
   {
     id: '2',
     type: 'budget' as const,
-    title: 'Set Transport Budget',
-    description: 'Your transport costs are 15% higher than similar users. Set a monthly limit of $150.',
+    title: 'تحديد ميزانية للمواصلات',
+    description: 'تكاليف المواصلات أعلى بـ 15% من المستخدمين المماثلين. حدد حد شهري $150.',
     potentialSaving: 45,
-    priority: 'high' as const
+    priority: 'high' as const,
+    actionData: {
+      category: 'Transport',
+      amount: 150
+    }
   },
   {
     id: '3',
     type: 'goal' as const,
-    title: 'Emergency Fund Goal',
-    description: 'Start building an emergency fund. Save $200 monthly to reach 3 months of expenses.',
-    priority: 'high' as const
+    title: 'صندوق الطوارئ',
+    description: 'ابدأ ببناء صندوق طوارئ. وفر $200 شهرياً للوصول لـ 3 أشهر من المصاريف.',
+    priority: 'high' as const,
+    actionData: {
+      targetAmount: 3000,
+      monthlyTarget: 200,
+      deadline: '2024-12-31'
+    }
   }
 ];
 
 const Dashboard = () => {
+  const { toast } = useToast();
   const [transactions, setTransactions] = useState(initialTransactions);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
   const [isBankUploadOpen, setIsBankUploadOpen] = useState(false);
 
@@ -70,12 +88,78 @@ const Dashboard = () => {
     setTransactions(prev => [transaction, ...prev]);
   };
 
+  const handleApplyRecommendation = (recommendation: any) => {
+    if (recommendation.type === 'budget' && recommendation.actionData) {
+      const newBudget: Budget = {
+        id: `budget-${Date.now()}`,
+        category: recommendation.actionData.category,
+        monthlyLimit: recommendation.actionData.amount,
+        currentSpent: 0,
+        alertThreshold: 80,
+        isActive: true,
+        createdAt: new Date().toISOString()
+      };
+      setBudgets(prev => [...prev, newBudget]);
+      
+      toast({
+        title: "تم إنشاء ميزانية جديدة",
+        description: `تم تحديد ميزانية ${newBudget.category} بحد أقصى ${newBudget.monthlyLimit}$`,
+      });
+    } else if (recommendation.type === 'goal' && recommendation.actionData) {
+      const newGoal: SavingsGoal = {
+        id: `goal-${Date.now()}`,
+        title: recommendation.title,
+        targetAmount: recommendation.actionData.targetAmount,
+        currentAmount: 0,
+        monthlyTarget: recommendation.actionData.monthlyTarget,
+        deadline: recommendation.actionData.deadline,
+        isActive: true,
+        category: 'Emergency Fund'
+      };
+      setSavingsGoals(prev => [...prev, newGoal]);
+      
+      toast({
+        title: "تم إنشاء هدف توفير جديد",
+        description: `تم تحديد هدف ${newGoal.title} بقيمة ${newGoal.targetAmount}$`,
+      });
+    }
+  };
+
   const handleTransactionsExtracted = (extractedTransactions: Omit<typeof transactions[0], 'id'>[]) => {
     const newTransactions = extractedTransactions.map(tx => ({
       ...tx,
       id: `${Date.now()}-${Math.random()}-${Math.random()}`,
     }));
     setTransactions(prev => [...newTransactions, ...prev]);
+    
+    // Update budget spending based on new transactions
+    const updatedBudgets = budgets.map(budget => {
+      const categoryTransactions = newTransactions.filter(
+        tx => tx.category === budget.category && tx.type === 'expense'
+      );
+      const additionalSpent = categoryTransactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+      return {
+        ...budget,
+        currentSpent: budget.currentSpent + additionalSpent
+      };
+    });
+    setBudgets(updatedBudgets);
+  };
+
+  const handleUpdateBudget = (updatedBudget: Budget) => {
+    setBudgets(prev => prev.map(b => b.id === updatedBudget.id ? updatedBudget : b));
+  };
+
+  const handleDeleteBudget = (budgetId: string) => {
+    setBudgets(prev => prev.filter(b => b.id !== budgetId));
+  };
+
+  const handleUpdateSavingsGoal = (updatedGoal: SavingsGoal) => {
+    setSavingsGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
+  };
+
+  const handleDeleteSavingsGoal = (goalId: string) => {
+    setSavingsGoals(prev => prev.filter(g => g.id !== goalId));
   };
 
   return (
@@ -148,16 +232,20 @@ const Dashboard = () => {
 
             {/* Tabs Content */}
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-6">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="transactions">Transactions</TabsTrigger>
-                <TabsTrigger value="insights">AI Insights</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
+                <TabsTrigger value="transactions">المعاملات</TabsTrigger>
+                <TabsTrigger value="insights">رؤى الذكاء الاصطناعي</TabsTrigger>
+                <TabsTrigger value="budgets">الميزانيات والأهداف</TabsTrigger>
               </TabsList>
 
               <TabsContent value="overview" className="space-y-6">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                   <TransactionList transactions={transactions} />
-                  <SmartRecommendations recommendations={mockRecommendations} />
+                  <SmartRecommendations 
+                    recommendations={mockRecommendations} 
+                    onApplyRecommendation={handleApplyRecommendation}
+                  />
                 </div>
               </TabsContent>
 
@@ -191,7 +279,10 @@ const Dashboard = () => {
 
               <TabsContent value="insights" className="space-y-6">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                  <SmartRecommendations recommendations={mockRecommendations} />
+                  <SmartRecommendations 
+                    recommendations={mockRecommendations}
+                    onApplyRecommendation={handleApplyRecommendation}
+                  />
                   <Card>
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -221,6 +312,17 @@ const Dashboard = () => {
                     </CardContent>
                   </Card>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="budgets" className="space-y-6">
+                <BudgetManager
+                  budgets={budgets}
+                  savingsGoals={savingsGoals}
+                  onUpdateBudget={handleUpdateBudget}
+                  onDeleteBudget={handleDeleteBudget}
+                  onUpdateSavingsGoal={handleUpdateSavingsGoal}
+                  onDeleteSavingsGoal={handleDeleteSavingsGoal}
+                />
               </TabsContent>
             </Tabs>
           </div>
